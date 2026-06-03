@@ -132,3 +132,59 @@ This solution was much simpler, especially given that one of the criteria we alr
 bandit6@bandit:~$ find / -group bandit6 -user bandit7 -size 33c 2> /dev/null
 /var/lib/dpkg/info/bandit7.password
 ```
+---
+
+# OverTheWire Bandit: Levels 7 to 10 Runbook
+**Date:** June 5, 2026
+
+
+## Level 7 -> 8: Find the "millionth"
+* **The Problem:** The password for the next level is in a file called data.txt in the home directory and is next to the word "millionth". It just so happens that the text has 98,567 lines!
+* **The Solution:** "cat data.txt | grep millionth"
+* **Notes:** This one was actually pretty simple. Given that we've been using the grep command already in our previous levels, finding the password was pretty straightforward. Getting the content of the file via "cat data.txt" actually takes about 15 seconds to fully finish printing to the terminal, so it makes our lives so much easier to pipe that output immediately into the grep command which, when adding in the "millionth" string, we simply get the one line we care about.
+
+```bash
+cat data.txt | grep millionth
+```
+
+
+## Level 8 -> 9: Uniquely Unique
+* **The Problem:** The text we are looking for in the data.txt file is the only line of text that occurs only once. 
+* **The Solution:** "sort data.txt | uniq -u"
+* **Notes:** This one is a little trickier than it seems. This one requires us to "sort" the contents of the file into a singular output and pipe that into the "uniq" command. Once it is piped, we need to find out which line is the only line that actually occurs one time only. The tricky part is (or at least was for me) that you can't just use "uniq", "uniq -u" or "sort" alone. "Sort" takes the contents of the file and... well... sorts it! It defaults to alphabetical, but arguments can be added in to sort by different criteria. Unfortunately, all this does is reorder the contents, not trim down or even evaluate it to the degree we need to. 
+
+Okay, so we decide to pipe the sorted data into the uniq command. The sneaky part is that "uniq" without additional switches only removes repeated data. It's like removing the same grocery item from a list that already had the item listed a few times. The issue with this is that we still can't tell which one was originally the **only** string without a repitition. The "-u" switch says "Hey, whatever is here, show me only what is uniquely unique. If something was here more than once, just remove it altogether from the output."
+
+So one thing I thought was "Okay, then why do I have to run the 'sort' command? It seems redundant to me if I'm sorting the data just to have it removed." Seems logical to someone with my level of logic! The catch is that uniq only looks at back-to-back lines, so if the data goes something like the following, it won't actually trim the repeated data since they're not back-to-back:
+
+A
+B
+C
+B
+A
+
+This means that it requires us to run the entire command:
+
+
+```bash
+sort data.txt | uniq -u
+```
+I also thought to myself, "Well could I just use 'cat' and it be the same as 'sort'?", but as mentioned earlier, if a line isn't repeated literally right afterward, "uniq" won't cut it out, thus "sort" is necesssary. 
+
+## Level 9 -> 10: Find the string!
+* **The Problem:** The password has been placed in a file with a bunch of unreadable text and I need to find it. It is supposed to be prepended with some "=" symbols.
+* **The Solution:** "strings data.txt | grep =="
+* **Notes:** When the challenged mentioned that the password was one of the few human-readable strings, I knew I had to employ some other tools in my arsenal! Although I assumed the file in question would be a data file, I wanted to verify. I ran:
+```bash
+bandit9@bandit:~$ file data.txt
+data.txt: data
+```
+Sure enough, I was going to be dealing with some funny-looking characters. That also means that it should be pretty easy to find what I need! By running "strings", I am looking for printable characters within the text, but then I need to find the specific characters that we can identify as our password. Enter our good old friend "grep". Taking the output via pipe, we grep for the leading equal signs and from there it was pretty straightforward what we were looking for:
+
+```bash
+bandit9@bandit:~$ strings data.txt | grep ==
+ ========== the
+========== password
+========== is
+========== [not going to spoil for others :)]
+```
