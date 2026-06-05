@@ -14,3 +14,43 @@
 
 ### CLI Commands:
 **Familiarity & Needs Improvement:** I'm actually familiar with a decent number of commands, such as ls, cp, rm, mkdir, man, touch, vi / vim / nano, systemctl, ip, and others, but the depth at which I am familiar with them varies. I look forward to getting more use with all of these commands (and more!).
+
+---
+
+**Update: June 7, 2026**
+
+In addition to my Bandit Wargames practice I'm doing to grow, I've also created an interactive script that actually ties in well with my practicing. I've made a script that saves me the effort of having to type in a command to ssh into the bandit servers each time. What I wanted to do was to make it easier to simply run a command and connect. 
+
+Here's what I created:
+
+```bash
+#!/bin/bash
+
+# Clear the screen for a clean interface
+clear
+echo "========================================="
+echo "   OVERTHEWIRE BANDIT SSH AUTOMATOR      "
+echo "========================================="
+echo ""
+
+# Prompt the user for the level number
+echo -n "Enter the Bandit level number you want to join (e.g., 00, 06, 10): "
+read LEVEL
+
+# Dynamically construct the username
+USERNAME="bandit$LEVEL"
+
+echo ""
+echo "Connecting to $USERNAME..."
+echo "----------------------------------------="
+
+# Execute the SSH command dynamically
+ssh "$USERNAME@bandit.labs.overthewire.org" -p 2220
+```
+The first section clears the screen of anything currently present on the terminal followed by what is essentially a banner that is presented once running the command. The command "echo" simply prints to screen, as everyone who's printed their first "Hello World" to the CLI is familiar with. 
+
+From here, we print the prompt to the screen that indicates what level we want to join at and are also requiring the input to be submitted on the same line (the -n flag). The reason I did this is because the ssh command that connects us to the server requires a different username based on the level we want to join for, therefore I needed a prompt to ask me for an input for the level I'd like to join in to. For this, we are creating a variable LEVEL which is what the input of the prompt becomes. We see this with the "read LEVEL" line. 
+
+In the next section, we create a new variable called "USERNAME" which is now the combination of the constant "bandit" plus the "LEVEL" the user just submitted. This then becomes "USERNAME=bandit$LEVEL". After this, we add the next line that gets printed to the screen to tell the end user that they are connecting to the level based on the new USERNAME variable.
+
+Finally, the actual command that gets us to connect is executed, leveraging our new USERNAME variable in the username field of what would normally be a manually entered bandit[number].
