@@ -415,3 +415,88 @@ Now that we've changed the permissions to something that should work, we finally
 ssh -i sshkey.private bandit14@bandit.labs.overthewire.org -p 2220
 ```
 This is actually very similar to the normal commands we've been using to connect via ssh except the main difference is that we are using the "-i" flag which tells us that we are going to use an "identity file" which allows us to leverage a private key file to be used for connectivity. 
+
+---
+
+# OverTheWire Bandit: Levels 14 to 17 Runbook
+**Date:** June 8, 2026
+
+
+## Level 14 -> 15: Localhost aka loopback aka 127.0.0.1
+* **The Problem:** The password for the next level is acquired by using the actual password for level 14 (not the ssh key used in the last challenge) and leveraging it with localhost on port 30000
+* **The Solution:** 
+```bash
+nc localhost -p 30000
+[enter password]
+```
+* **Notes:** So this one actually leverages "nc" or "netcat" to sneak around this obstacle. Netcat is actually a very powerful tool that can do a wide variety of things, including port scanning, file transfer, network service testing, ,and much much more! 
+
+In our scneario, we used nc to connect to our own server via localhost (127.0.0.1 which is our loopback address). Localhost simply means "ourself". When in a browser and we type localhost, we are browsing to our own machine. So in the challenge, we need to connect to our own machine but ssh is blocked, so we have to use another method of doing so. 
+
+Once we acquired the password from the stored password file, /etc/bandit_pass/bandit14, we ran the command in our solution which spit back a "Correct!" followed by the password we are to use for the next level!
+q
+```bash
+bandit14@bandit:/etc/bandit_pass$ nc localhost 30000
+MU4VWeTyJk8ROof1qqmcBPaLh7lDCPvS
+Correct!
+[pretend this is a password]
+
+^C
+```
+
+
+## Level 15 -> 16: Localhost via SSL/TLS
+* **The Problem:** The password is hidden similarly to level 15, however we need to connect over SSL/TLS over port 30001
+* **The Solution:** 
+```bash
+openssl s_client -connect localhost:30001
+```
+* **Notes:** This one truly is a rince and repeat of the last level but in a different capacity. OpenSSL can do many things SSL/TLS related. This time, we simply want to use it to connect to localhost and we do so by using the s_client connect. On a personal level, I'm somewhat familiar with this command already and I have had to use openssl to both generate certificates, certificate signing requests (CSRs), and also connect to servers to get their certificate information. In our lab, we run the following command along with the password of the level and get a similar repsonse as the last level (we just have to sift through a bunch of certificate related information):
+
+```bash
+bandit15@bandit:/etc/bandit_pass$ openssl s_client -connect localhost:30001
+...
+8xCjnmgoKbGLhHFAZlGE5Tmu4M2tKJQo
+Correct!
+[the password was here, I promise]
+```
+
+## Level 16 -> 17: Nmap for the win!
+* **The Problem:** The password is saved in similar fashion as the last two challenges - I need to connect to localhost over a particular port. The problem is that this time I have to find the right port somwhere within the range of 1000 ports! 
+* **The Solution:** 
+```bash
+nmap -sV localhost -p31000-32000
+openssl s_client -quiet -connect localhost:[port] 
+```
+* **Notes:** Finally, the last challenge of the day! That said, this one was not as challenging! We had to find out which port among the thousand possibilities (between 31000 and 32000). It has to be one that is running SSL and won't return back the same entry we input. Nmap to the rescue! It is, similarly to ncat, a very powerful tool. In our use case, we can use it to discover which ports are open as well as which services it is using by running:
+```bash
+bandit16@bandit:~$ nmap -p31000-32000 localhost
+Starting Nmap 7.94SVN ( https://nmap.org ) at 2026-06-09 01:08 UTC
+Nmap scan report for localhost (127.0.0.1)
+Host is up (0.00011s latency).
+Not shown: 996 closed tcp ports (conn-refused)
+PORT      STATE SERVICE
+31046/tcp open  echo
+31518/tcp open  ssl/echo
+31691/tcp open  echo
+31790/tcp open  ssl/unknown
+31960/tcp open  echo
+```
+We see that there are 5 open ports, 2 of which are running SSL, and 1 of which that is not going to run back the command we are going to give it as input via echo. This leaves us with port 31790! From here, we know what to do!
+
+```bash
+bandit16@bandit:~$ openssl s_client -quiet -connect localhost:31790
+Can't use SSL_get_servername
+depth=0 CN = SnakeOil
+verify error:num=18:self-signed certificate
+verify return:1
+depth=0 CN = SnakeOil
+verify return:1
+kSkvUpMQ7lBYyCM4GBPvCvT1BfWRy0Dx
+Correct!
+-----BEGIN RSA PRIVATE KEY-----
+MIIEogIBAAKCAQEAvmOkuifmMg6HL2YPIOjon6iWfbp7c3jx34YkYWqUH57SUdyJ
+imZzeyGC0gtZPGujUSxiJSWI/oTqexh+cAMTSMlOJf7+BrJObArnxd9Y7YT2bRPQ
+...
+```
+Voila! Now we simply need to copy this new private key to our local machine so we can ssh into the next level!
