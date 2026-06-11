@@ -451,7 +451,7 @@ Correct!
 ```bash
 openssl s_client -connect localhost:30001
 ```
-* **Notes:** This one truly is a rince and repeat of the last level but in a different capacity. OpenSSL can do many things SSL/TLS related. This time, we simply want to use it to connect to localhost and we do so by using the s_client connect. On a personal level, I'm somewhat familiar with this command already and I have had to use openssl to both generate certificates, certificate signing requests (CSRs), and also connect to servers to get their certificate information. In our lab, we run the following command along with the password of the level and get a similar repsonse as the last level (we just have to sift through a bunch of certificate related information):
+* **Notes:** This one truly is a rinse and repeat of the last level but in a different capacity. OpenSSL can do many things SSL/TLS related. This time, we simply want to use it to connect to localhost and we do so by using the s_client connect. On a personal level, I'm somewhat familiar with this command already and I have had to use openssl to both generate certificates, certificate signing requests (CSRs), and also connect to servers to get their certificate information. In our lab, we run the following command along with the password of the level and get a similar repsonse as the last level (we just have to sift through a bunch of certificate related information):
 
 ```bash
 bandit15@bandit:/etc/bandit_pass$ openssl s_client -connect localhost:30001
@@ -500,3 +500,57 @@ imZzeyGC0gtZPGujUSxiJSWI/oTqexh+cAMTSMlOJf7+BrJObArnxd9Y7YT2bRPQ
 ...
 ```
 Voila! Now we simply need to copy this new private key to our local machine so we can ssh into the next level!
+
+---
+
+# OverTheWire Bandit: Levels 17 to 20 Runbook
+**Date:** June 11, 2026
+
+
+## Level 17 -> 18: What's the diff?
+* **The Problem:** The password is hidden in the passwords.new file and is the only line that's different from the passwords.old file.
+* **The Solution:**
+```bash
+diff passwords.new passwords old
+```
+* **Notes:** Personally, I feel that this challenge should have been in an earlier level due to difficulty. The goal is to find out the one line that is different between the two in the home directory. This one line will be the password to the next level. Fortunately, this challenge only really requires the one command, "diff". Here's what we get when we run it against the two files:
+```bash
+bandit17@bandit:~$ diff passwords.new passwords.old 
+42c42
+<   
+---
+> 390zFj2NETFVZkqYw8UEFdN6h40oGVtT
+```
+The anatomy of this output is as follows:
+
+* 42c42: This is the first piece of output that we see. The first "42" indicates the line that the first file (passwords.new) has the difference, the "c" indicates that there is a change. Other options could be "a" for add, where a line could be added where it doesn't exist in the other file, or "d" where the file could be deleted in comparison to the file being compared. 
+* < x2gLTTjFwMOhQ8oWNbMN362QKxfRqGlO: The second line indicates that the file on the left of the command, which in our case is passwords.new, is being referenced. It is saying the difference is the string that follows.
+* ---: This is the separator of the next section, indicating that all differences from file 1 are finished being displayed.
+* \ > 390zFj2NETFVZkqYw8UEFdN6h40oGVtT: Finally, this indicates the second file is being referenced with the ">" sign along with the difference that exists in the second file (passwords.old)
+
+From this, we can see that the difference is on line 42 and the passwords.new file has what is supposed to be our key to the next level!
+
+
+## Level 19 -> 20: Very special password privileges
+* **The Problem:** The password for the next level requires us to run the setuid binary that's in the home directory. 
+* **The Solution:** 
+```bash
+ ./bandit20-do cat /etc/bandit_pass/bandit20
+```
+* **Notes:** This one is simple enough once you get a grasp of the concept of the problem. The file that's listed in the home directory is highlighted red with white text. Although the guide indicates what we are working with (setuid), I wanted to verify. Files that are formatted in this particular color scheme do in fact indicate that they are files with the specific special permission of setuid. Essentially, the file being SUID indicates that it has a special permissions flag that says "I may be able to be run by other users, but it will actually be facilitated as though it were run by the owner". 
+
+A quick peek at the file itself tells us something we don't normally see on file permissions:
+```bash
+bandit19@bandit:~$ ls -l
+total 16
+-rwsr-x--- 1 bandit20 bandit19 14888 Apr  3 15:17 bandit20-do
+```
+Here we see in the owner's permissions that the execuatble bit is actually replaced by an "s". This is the special character that indicates that it will be executed as the owner of the file. We can also see that the owner of the file is bandit20, the user of the level we are trying to reach.
+
+So back to the goal of the challenge: access the password from the normal /etc/bandit_pass directory that stores level passwords. Since we cannot read this directory as bandit19, we can use the "bandit20-do" SUID file to access the password. To do that, we run:
+
+```bash
+bandit19@bandit:~$ ./bandit20-do cat /etc/bandit_pass/bandit20
+[here is the password output]
+```
+
