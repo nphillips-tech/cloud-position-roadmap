@@ -554,3 +554,189 @@ bandit19@bandit:~$ ./bandit20-do cat /etc/bandit_pass/bandit20
 [here is the password output]
 ```
 
+---
+
+# OverTheWire Bandit: 20 to 24
+**Date:** June 16, 2026
+
+
+## Level 20 -> 21: Netc"at" it again
+* **The Problem:** There is a setuid binary in the homedirectory that does the following: it makes a connection to localhost on the port you specify as a commandline argument. It then reads a line of text from the connection and compares it to the password in the previous level (bandit20). If the password is correct, it will transmit the password for the next level (bandit21).
+* **The Solution:** 
+```bash
+echo "0qXahG8ZjOVMN9Ghs7iOWsCfZyXOUbYO" | nc -l -p 61626 &
+...
+./suconnect 61626
+```
+* **Notes:** To get this password, we don't need too many commands, but we need the right ones with the right info! The setuid actually facilitates connecting to localhost on the port I specify (I chose 61626 since it's the date I did it on). Since it's essentially running it's own netcat command to connect, we know that we can run our own netcat command to connect as well! That said, we need to provide the password of the bandit20 level and to do that we simply "echo" the password, pipe it into the netcat command and add the necessary flags. 
+
+After we run the command, we just need to run the setuid with the port number specified and we get what we were looking for!
+```bash
+bandit20@bandit:~$ ./suconnect 61626
+Read: 0qXahG8ZjOVMN9Ghs7iOWsCfZyXOUbYO
+Password matches, sending next password
+[password!!!]
+```
+
+## Level 21 -> 22: Walter CronCat
+* **The Problem:** A program is running automatically at regular intervals from cron, the time-based job scheduler. Look in /etc/cron.d/ for the configuration and see what command is being executed.
+* **The Solution:** 
+```bash
+cd /etc/cron.d
+cat cronjob_bandit22
+cat /usr/bin/cronjob_bandit22.sh
+cat /tmp/t7O6lds9S0RqQh9aMcz6ShpAoZKF7fgv
+```
+* **Notes:** Talk about an easy challenge! These levels have been varying in difficulty, but this one was a piece of cake. Per the description, the regularly scheduled job should provide me insight into where to get the password. Since we are trying to get into level 22, we wanted to go investigate any cronjobs that would tell us about that level.
+```bash
+bandit21@bandit:/etc/cron.d$ cd /etc/cron.d
+bandit21@bandit:/etc/cron.d$ ls
+behemoth4_cleanup  clean_tmp  cronjob_bandit22  cronjob_bandit23  cronjob_bandit24  e2scrub_all  leviathan5_cleanup  manpage3_resetpw_job  otw-tmp-dir  sysstat
+bandit21@bandit:/etc/cron.d$ cat cronjob_bandit22
+@reboot bandit22 /usr/bin/cronjob_bandit22.sh &> /dev/null
+* * * * * bandit22 /usr/bin/cronjob_bandit22.sh &> /dev/null
+```
+
+Here we navigate, display existing files in the desired directory, and then display the contents within the correct file. We see that on reboot bandit22 runs the bash script and puts errors into the void AND it also executes every minute, hour, day, week, (etc). So we want to see the contents of the contents of the script in question, so we "cat" it out and find out that it's simply doing it's own "cat" of the password file into a file in the /tmp directory.
+
+```bash
+bandit21@bandit:/etc/cron.d$ cat /usr/bin/cronjob_bandit22.sh
+#!/bin/bash
+chmod 644 /tmp/t7O6lds9S0RqQh9aMcz6ShpAoZKF7fgv
+cat /etc/bandit_pass/bandit22 > /tmp/t7O6lds9S0RqQh9aMcz6ShpAoZKF7fgv
+bandit21@bandit:/etc/cron.d$ cat /tmp/t7O6lds9S0RqQh9aMcz6ShpAoZKF7fgv
+[password was here]
+```
+
+
+## Level 22 -> 23: 
+* **The Problem:** A program is running automatically at regular intervals from cron, the time-based job scheduler. Look in /etc/cron.d/ for the configuration and see what command is being executed.
+* **The Solution:** 
+```bash
+echo I am user bandit23 | md5sum | cut -d ' ' -f 1
+```
+* **Notes:** I must be honest... I got tripped up on the easiest part of this challenge. Allow me to walk you through my investigations and watch how I fumbled the easiest part. 
+
+First, we run it back again with the same old commands:
+```bash
+bandit22@bandit:~$ cd /etc/cron.d
+bandit22@bandit:/etc/cron.d$ ls
+behemoth4_cleanup  cronjob_bandit22  cronjob_bandit24  leviathan5_cleanup    otw-tmp-dir
+clean_tmp          cronjob_bandit23  e2scrub_all       manpage3_resetpw_job  sysstat
+bandit22@bandit:/etc/cron.d$ cat cronjob_bandit23
+@reboot bandit23 /usr/bin/cronjob_bandit23.sh  &> /dev/null
+* * * * * bandit23 /usr/bin/cronjob_bandit23.sh  &> /dev/null
+bandit22@bandit:/etc/cron.d$ cat /usr/bin/cronjob_bandit23.sh
+#!/bin/bash
+
+myname=$(whoami)
+mytarget=$(echo I am user $myname | md5sum | cut -d ' ' -f 1)
+
+echo "Copying passwordfile /etc/bandit_pass/$myname to /tmp/$mytarget"
+```
+We see from the above, we get to a point where we are looking into a bash script that needs deciphering! First, #!/bin/bash tells the system "Hey, I'm a script... run me!", so we can acknowledge that and move on to the next lines. 
+
+Next, we are defining a variable which is called "myname" and it is being set to whatever the output of the "whoami" command is (which would be bandit23 for the password we want to find). 
+
+The second line of actual script is defining another variable, but this time with a little more spice. We see that the variable "mytarget" is a string made up of the echoed "I am user" plus the username of the user (which will be bandit23). This gets piped into a md5sum hashing command which essentially turns it into unintelligible data. The last pipe takes the hashed data and cuts out the first field of the output and defines the delimiter as a whitespace. After all of these piped commands, we have ourselves the "mytarget" variable.
+
+Now the final piece of the script echoes a string where it says the password file is being copied from the password file in the normal password directory of the user (bandit23) into the newly created variable. From here, finding the variable was essentially just running the command! Here's where I got frustrated. I kept taking "bandit23" and running it through md5sum and then cleaning it up with "cut" and it just kept failing! What I needed to do was remember that the value being piped into the md5sum command was the whole string! Eventually I caught on and added the "I am user" portion and got the correct output. Then it was just a matter of "cat"ing the contents of that newly discovered file!
+
+
+
+```bash
+#!/bin/bash
+
+myname=$(whoami)
+mytarget=$(echo I am user $myname | md5sum | cut -d ' ' -f 1)
+
+echo "Copying passwordfile /etc/bandit_pass/$myname to /tmp/$mytarget"
+
+cat /etc/bandit_pass/$myname > /tmp/$mytarget
+```
+
+## Level 23 -> 24: 
+* **The Problem:** A program is running automatically at regular intervals from cron, the time-based job scheduler. Look in /etc/cron.d/ for the configuration and see what command is being executed.
+* **The Solution:** 
+```bash
+bandit23@bandit:~$ echo -e '#!/bin/bash\ncat /etc/bandit_pass/bandit24 > /tmp/final_bandit24_secret.txt\nchmod 666 /tmp/final_bandit24_secret.txt' > /tmp/getpass.sh
+bandit23@bandit:~$ chmod +x /tmp/getpass.sh
+bandit23@bandit:~$ cp /tmp/getpass.sh /var/spool/bandit24/foo/
+bandit23@bandit:~$ cat /tmp/final_bandit24_secret.txt
+[correct password shown here!]
+```
+
+* **Notes:** Notes on the script that I am reading from: This one was quite the challenge. I took a lot of notes on this one, so I shared them below. Essentially I am figuring this one out on the fly and write down my gatherings as I complete it instead of coming back and taking notes once it was all completed. Here's the fun I had:
+
+first, we are running the command:
+```bash
+shopt -s nullglob
+```
+shopt is one of the few that does not have a "man" entry, but requires a "help" command to learn about it. I learned that shopt's role is to set and unset shell options and specifically that the "-s" option enables each OPTNAME, in which case is nullglob. 
+
+Next, we see the set variable "myname" which is set to the printout of the "whoami" command. 
+
+The command begins with:
+```bash
+cd /var/spool/"$myname"/foo || exit
+```
+So far so good; change directory to the foo directory that lives in /var/spool/"$myname" which for us will be "bandit23" here on out. The || means that it's an "or" statement. Normally, one | means that we feed the output of the preceeding command into the next one, but with two pipes, it becomes an "or" command, where we see here that it either goes into this directory OR exits.
+
+Another easy line of the script is:
+```bash
+echo "Executing and deleting all scripts in /var/spool/$myname/foo:"
+```
+This one "echos" to the user that "Executing and deleting all scripts in /var/spool/$myname/foo:", which of course has the variable replaced with bandit23. This also kind of gives us a hint at what the goal of the script will do, which should help us navigate breaking down the script so as to understand it.
+
+Next we get into what looks like python programming, though I understand that this is Bash scripting. As of today, I know basics about programming, so I am dissecting this as I go. By the time you reach the end of this challenge's submission, you will have watched me figure it out as I go.
+```bash
+for i in * .*;
+```
+This is what is called a "for loop" where the variable "i" is set and then used in the actual loop. The "in * .*" section gives us the actual input formatting. Finally, the ";" tells us that the loop is as follows:
+```bash
+do
+    if [ "$i" != "." ] && [ "$i" != ".." ];
+    then
+```
+
+The "do" followed by the "if" part kicks us off by saying "do this if the following applies". Then it jumps into "if the variable i that is passed into this loop does not equal a "." and also does not equal a "..", then continue on".
+
+```bash
+echo "Handling $i"
+owner="$(stat --format "%U" "./$i")"
+```
+We are already familiar enough with echo, so we know that we are printing to the user "Handling [the inputted variable aka "i"]. The next part we are also somewhat familiar with already because we already discussed what variable setting is. We can see that we are trying to define the variable "owner" as the owner of the file "./%i" which is a newly formatted username of the owner via the "stat --format %U" command. 
+
+```bash
+if [ "${owner}" = "bandit23" ] && [ -f "$i" ];
+```
+From here, we start another "if" statement! If the newly created owner variable happens to each bandit23 **and** the variable exists and is a regular file (had to do some research on this; the "-f" flag threw me off without a command preceding it, so I discovered that if it exists within square brackets, like in this script, it means that it is checking to verify that it is real and is not a directory or a device)...
+
+Then... (hence the ";then")
+```bash
+timeout -s 9 60 "./$i"
+```
+Here we have the timeout command which runs the command that follows (our script variable which will be the "./$i") and then kills it (by the 9 argument) after it is run or 60 seconds. 
+
+The if statement is then completed with an "fi" syntax. We still have one more if statement to "end" but before that, we have one more command that we see:
+```bash
+rm -rf "./$i"
+```
+We see a pretty straightfowrard final command (and one we expected based on the first "echo" command) that tells us that it wraps up with forcefully removing the file and anything else in the directory recursively.
+
+```bash
+    fi
+done
+```
+The last two sytaxes are the closing of the previous "if" statement and then the "done" which finished up the "for" loop.
+
+Now that we understand the script, we know how we can create our own script to grab the password for the next level! To break it down now before writing it out:
+- the variable needs to not equal the default hidden files (so far, so good)
+- the variable will need to equal the bandit23 user and that it must be flagged as an executable file (chmod +x) so that the background automated cron script can successfully trigger its logic and output the secret file into /tmp/ before deleting our injection vehicle
+
+
+#!/bin/bash
+
+cat /etc/bandit_pass/bandit24 > /tmp/nick_stolen_bandit24pass.txt
+
+
