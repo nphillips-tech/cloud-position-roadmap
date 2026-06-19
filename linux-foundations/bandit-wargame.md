@@ -740,3 +740,97 @@ Now that we understand the script, we know how we can create our own script to g
 cat /etc/bandit_pass/bandit24 > /tmp/nick_stolen_bandit24pass.txt
 
 
+---
+
+# OverTheWire Bandit: Levels 24 to 26 Runbook
+**Date:** June 19, 2026
+
+## Level 24 to 25: "Bash" aka Brute Scripting
+* **Concept:** A daemon is listening on port 30002 and will give you the password for bandit25 if given the password for bandit24 and a secret numeric 4-digit pincode. There is no way to retrieve the pincode except by going through all of the 10000 combinations, called brute-forcing.
+You do not need to create new connections each time
+* **Script Created:**
+```bash
+#!/bin/bash
+password=$(cat /etc/bandit_pass/bandit24)
+
+for i in {0000..9999}; do
+        echo "$password $i"
+done | nc localhost 30002
+```
+* **Notes:** Challenge 25 was actually very fun! I had an inkling that the challenge would require a script given that I would have to try 10000 combinations which nobody has time to do manually! So into the scripting we go.
+
+First, we start off our script with the shebang along with the shell used to write the script. From here, since we needed to not only attempt 10000 combinations of 4 digit codes, but we also needed a preceeding password and whitespace, I figured we ought to define the variable first! Variables need to be defined before they can be used, so doing so first is required. This is where I decided to make the variable "password" and to set it to be the contents of the bandit24 password file:
+```bash
+password=$(cat /etc/bandit_pass/bandit24)
+```
+Second, since we will be looping through many iterations of combinations, we need to create a "for" loop. My thought was that for each loop, make the variable (i) a number that starts with exactly 0000 (not just a single 0) and then increment the loop each time by 1 digit until we get through 9999. Each time the loop is run through, we want to echo the password variable, white space, and then the "i" variable. 
+```bash
+for i in {0000..9999}; do
+        echo "$password $i"
+```
+Notice that this loop is not technically finished. I didn't show my last line of the script because I wanted to explain the options that could be done. Technically, we could add the connection as part of the loop, adding in nc localhost 30002 (our necessary command to connect to the daemon), but this would end up causing there to be the 10000 connection attempts, potentially (probably) overloading the system's resources. Instead, I closed the loop and then piped the output into a single connection by leaving the netcat command outside of the loop:
+```bash
+done | nc localhost 30002
+```
+
+When running the script, we get a bunch of fun results telling us how wrong we really are...until we aren't! To run the script, we create a tmp file, give it the permissions to execute (chmod +x), and the run it!"
+```bash
+Wrong! Please enter the correct current password and pincode. Try again.
+Wrong! Please enter the correct current password and pincode. Try again.
+Wrong! Please enter the correct current password and pincode. Try again.
+Wrong! Please enter the correct current password and pincode. Try again.
+Wrong! Please enter the correct current password and pincode. Try again.
+Correct!
+[here is where the password was given!]
+```
+
+## Level 25 to 26: 
+* **Concept:** Logging in to bandit26 from bandit25 should be fairly easy… The shell for user bandit26 is not /bin/bash, but something else. Find out what it is, how it works and how to break out of it.
+* **Commands Run:**
+```bash
+ssh -i bandit26.sshkey bandit26@bandit.labs.overthewire.org -p 2220
+...
+v
+...
+:set shell=/bin/bash
+:shell
+cat /etc/bandit_pass/bandit26
+```
+* **Notes:** Knowing Vim helps a lot with this challenge. I had to do a decent amount of research as I've not used Vim a whole lot. I've historically done as little as possible in Linux text editors but now this challenge has taught me a valuable lesson; Vim is important to know. Knowing Vim, though, isn't the first thing to know about this challenge. We are told that Bandit26's shell is not /bin/bash but something different. Before we even try to connect to bandit26, getting some intel from within bandit25 is crucial. To find out what a user's particular default shell is, we check the /etc/passwd file:
+```bash
+bandit25@bandit:~$ cat /etc/passwd | grep bandit26
+bandit26:x:11026:11026:bandit level 26:/home/bandit26:/usr/bin/showtext
+```
+We can see after displaying and sifting appropriately (via cat and grep), we see at the end of the bandit26's user information the default shell is "/usr/bin/showtext". Let's see what exactly that is:
+```bash
+bandit25@bandit:~$ file /usr/bin/showtext 
+/usr/bin/showtext: POSIX shell script, ASCII text executable
+bandit25@bandit:~$ cat /usr/bin/showtext 
+#!/bin/sh
+
+export TERM=linux
+
+exec more ~/text.txt
+exit 0
+```
+
+Just a quick check on the kind of file we are dealing with here, we can see that the file command tells us that we are looking at a script file with ASCII text; something we can easily view. 
+
+Taking a quick look at the file, we first see something that isn't terribly relevant for our purposes (the rendering of the text on the screen) but then we see the script executing the "more" command on the text.txt file followed by the exit command. Why that's relevant is because when we try to remote into the machine with bandit26, it displays the text and then forces us to exit the session. The sneaky thing here is that the "more" command is for text viewing and allows us to paginate when text exceeds what is viewable in the terminal. This is sneaky because we can at least get into the machine by minimizing our terminal size to force the text to be more than what can be displayed on our terminal! We end up seeing something like this:
+```bash
+ | |                   | (_) | |__ \ / /  
+ | |__   __ _ _ __   __| |_| |_   ) / /_  
+--More--(50%)
+```
+Here's where the Vim knowledge comes in handy. Originally intended as a feature, the "more" command drops us into an actual text editor. From here, we can enter "v" to enter "vi" and then we can start running commands from "Normal" mode! From here, we can change the default shell with the set command followed by the new shell path:
+```bash
+:set shell=/bin/bash
+...
+:shell
+```
+Since we set the shell, you can see above that we can actually just execute the new shell which brings us into a new sub-shell text editor! From here, we have the inherited permissions since we are logged in as bandit26 and can now check out the password file with ease!
+```bash
+cat /etc/bandit_pass/bandit26
+[here is the password!]
+```
+
