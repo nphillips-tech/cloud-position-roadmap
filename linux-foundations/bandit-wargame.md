@@ -784,7 +784,7 @@ Correct!
 [here is where the password was given!]
 ```
 
-## Level 25 to 26: 
+## Level 25 to 26: More Vim to go around!
 * **Concept:** Logging in to bandit26 from bandit25 should be fairly easy… The shell for user bandit26 is not /bin/bash, but something else. Find out what it is, how it works and how to break out of it.
 * **Commands Run:**
 ```bash
@@ -833,4 +833,66 @@ Since we set the shell, you can see above that we can actually just execute the 
 cat /etc/bandit_pass/bandit26
 [here is the password!]
 ```
+
+---
+
+# OverTheWire Bandit: Levels 26 to 28 Runbook
+**Date:** June 23, 2026
+
+## Level 26 to 27: Shellevel up! 
+* **Concept:** Now that we're in the shell from the previous level's challenge, we need to get the password by executing the bandit27 file in the user's home directory. 
+* **Commands Run:**
+```bash
+ ./bandit27-do cat /etc/bandit_pass/bandit27
+ ```
+* **Notes:** Although this level is pretty easy to complete, I want to show a few extra steps just to fill out the notes and to practice good sysadmin behaviors, as doing this in the field may come with even less context.
+
+First, running the ls command shows us we probably care about the bandit27-do file.
+```bash
+bandit26@bandit:~$ ls -l
+total 20
+-rwsr-x--- 1 bandit27 bandit26 14888 Jun 14 17:54 bandit27-do
+-rw-r----- 1 bandit26 bandit26   258 Jun 14 17:54 text.txt
+```
+We see that it has a particular permission that should stand out to us - the group execuatble permission flag is present and we just so happen to be a part of that group! With this, we can be sure that we have permission to run it, so let's do just that:
+```bash
+bandit26@bandit:~$ ./bandit27-do 
+Run a command as another user.
+  Example: ./bandit27-do id
+```
+So this isn't a "permission denied" return, rather part of the programming of the file is telling us that it is expecting to be run as another user. So we simply output the contents of the password for /etc/bandit_pass/bandit27 into the command and it gives us our desired output!
+```bash
+bandit26@bandit:~$ ./bandit27-do cat /etc/bandit_pass/bandit27
+[trust me, this is the password output]
+```
+A final thought before closing this challenge out. It does seem at the surface that running the command without a pipe wouldn't work. It feels like since we are running separate commands, we should pipe output from one into the other. That said, there are two issues with that:
+1. We don't actually have permissions to read the password file as user bandit26.
+2. Since the bandit27-do file is essentially a script, it needs to have the necessary information input in the same command - sending it separately won't work as it will think it received nothing.
+
+This is why we must run the command combined in the particular order that it's in. It goes "here's the executable and then here's the expected input it needs to give us our desired output".
+
+
+## Level 27 to 28: Git to it!
+* **Concept:** 
+There is a git repository at ssh://bandit27-git@bandit.labs.overthewire.org/home/bandit27-git/repo via the port 2220. The password for the user bandit27-git is the same as for the user bandit27.
+
+From your local machine (not the OverTheWire machine!), clone the repository and find the password for the next level. This needs git installed locally on your machine.
+* **Commands Run:**
+```bash
+git clone ssh://bandit27-git@bandit.labs.overthewire.org:2220/home/bandit27-git/repo
+cat README
+```
+* **Notes:** I was very surprised at how simple this level turned out to be. Granted, I've been minimally using Git throughout this entire runthrough, so it shouldn't be too surprising, however I still was pleasantly surprised.
+
+One of the first requirements is that we install Git (on our local machine). Fortunately for me, it's already been installed, but if I didn't already have it, it would be as simple as running:
+```bash
+sudo apt install git
+```
+
+From here, we need to clone the repository to our local environment and then simply read the README and we find the password:
+```bash
+git clone ssh://bandit27-git@bandit.labs.overthewire.org:2220/home/bandit27-git/repo
+cat README
+```
+That's why I was so surprised! It was very straightforward - just clone and read!
 
