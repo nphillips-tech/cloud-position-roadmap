@@ -896,3 +896,30 @@ cat README
 ```
 That's why I was so surprised! It was very straightforward - just clone and read!
 
+---
+
+# OverTheWire Bandit: Levels 28 to 30 Runbook
+**Date:** June 25, 2026
+
+## Level 28 to 29; 29 to 30: 
+* **Concept:** There is a git repository at ssh://bandit[28/29]-git@bandit.labs.overthewire.org/home/bandit27-git/repo via the port 2220. The password for the user bandit[28/29]-git is the same as for the user bandit[28/29].
+
+From your local machine (not the OverTheWire machine!), clone the repository and find the password for the next level. This needs git installed locally on your machine.
+* **Commands Run:** 
+28 to 29
+```bash
+git log
+git checkout 50febdf61932b63851d09c10be42769313e3f524
+```
+29 to 30
+```bash
+git log
+git branch -a
+git checkout dev
+```
+* **Notes:** This one was straightforward, so much so that I basically combined the two levels into one submission. Going off of the same processes as the last lab, we clone the respective levels into directories of their own to keep the separate. For level 29, we needed to see older commits, since the latest one had the edits to hide the accidental password. By running "git log", we see there are 2 commits, one of which says "add missing data" in the message field. We checkout to the older commit and we are able to see what wasn't in the original commit - the password!
+
+Now for the second challenge, 29 to 30, we need to specifically look at the branches to see where the password might be. By running "git branch -a", we can see all of the branches related to this repository and can dig through them to see if one has the password. Since the READme.md in the master branch says that passwords aren't stored in production, we can venture to guess that the might be in dev. Sure enough, running "git checkout dev" and then running "cat README.md" does the trick!
+
+A pretty straightforward level as these are testing a new content area instead of navigating within all Linux-related systems. 
+
