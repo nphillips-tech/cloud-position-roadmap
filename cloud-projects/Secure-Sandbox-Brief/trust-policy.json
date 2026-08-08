@@ -1,0 +1,21 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "rolesanywhere.amazonaws.com"
+      },
+      "Action": [
+        "sts:AssumeRole",
+        "sts:SetSourceIdentity",
+        "sts:TagSession"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:PrincipalArn": "arn:aws:rolesanywhere:us-east-1:123456789012:profile/a1b2c3d4-5678-90ab-cdef-EXAMPLE11111"
+        }
+      }
+    }
+  ]
+}
